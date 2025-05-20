@@ -27,7 +27,7 @@ func main() {
 	router := gin.Default()
 
 	// Enable CORS
-	utils.UseCors(router)
+	router.Use(utils.Cors)
 
 	// Register routes
 	routes.RegisterRoutes(router, container)
