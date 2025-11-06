@@ -1,19 +1,16 @@
 package db
 
 import (
-	"os"
+	"api/internal/config"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func InitializeDB() (*gorm.DB, error) {
-	db, err := gorm.Open(mysql.Open(os.Getenv("DATABASE_DSN")), &gorm.Config{})
+func InitializeDB(config *config.Config) (*gorm.DB, error) {
+	db, err := gorm.Open(postgres.Open(config.DatabaseDsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	// Migrate the database
-	db.AutoMigrate( /* add the models */ )
-
 	return db, nil
 }

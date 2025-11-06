@@ -2,41 +2,33 @@ package main
 
 import (
 	"api/db"
+	"api/internal/config"
 	"api/internal/container"
-	"api/internal/routes"
+	"api/internal/controllers"
 	"api/internal/utils"
-	"os"
+	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load environment variables
-	godotenv.Load()
+	cfg := config.LoadConfig()
 
-	// Initialize and connect to the database
-	db, err := db.InitializeDB()
-
+	gormDb, err := db.InitializeDB(cfg)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	container := container.NewContainer(db)
+	appContainer := container.NewContainer(gormDb, cfg)
 
 	router := gin.Default()
 
-	// Enable CORS
 	router.Use(utils.Cors)
 
-	// Register routes
-	routes.RegisterRoutes(router, container)
+	controllers.RegisterRoutes(router, appContainer)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	err = router.Run(":" + cfg.Port)
+	if err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
-
-	// Start the server
-	router.Run(":" + port)
 }

@@ -1,37 +1,37 @@
 package services
 
 import (
+	"api/internal/dtos"
 	"api/internal/repositories"
-	"api/internal/structs"
 )
 
-type AuthService interface {
-	GenerateToken(code string, challenge string) (*structs.GoogleTokenResponse, error)
-	ValidateToken(token string) (*structs.GoogleTokenValidationResponse, error)
-	RefreshToken(refreshToken string) (*structs.GoogleTokenRefreshResponse, error)
+type AuthService struct {
+	authRepository  repositories.AuthRepository
+	usersRepository repositories.UsersRepository
 }
 
-type authService struct {
-	AuthRepository repositories.AuthRepository
-}
-
-func NewAuthService(authRepository repositories.AuthRepository) AuthService {
-	return &authService{
-		AuthRepository: authRepository,
+func NewAuthService(authRepository repositories.AuthRepository, usersRepository repositories.UsersRepository) *AuthService {
+	return &AuthService{
+		authRepository:  authRepository,
+		usersRepository: usersRepository,
 	}
 }
 
-func (s *authService) GenerateToken(code string, challenge string) (*structs.GoogleTokenResponse, error) {
-	resp, err := s.AuthRepository.GenerateToken(code, challenge)
-	return resp, err
+func (s AuthService) GenerateToken(code string, challenge string) (*dtos.TokenDTO, error) {
+	resp, err := s.authRepository.GenerateToken(code, challenge)
+	return dtos.ToTokenDTO(resp), err
 }
 
-func (s *authService) ValidateToken(token string) (*structs.GoogleTokenValidationResponse, error) {
-	resp, err := s.AuthRepository.ValidateToken(token)
-	return resp, err
+func (s AuthService) RefreshToken(refreshToken string) (*dtos.TokenDTO, error) {
+	resp, err := s.authRepository.RefreshToken(refreshToken)
+	return dtos.ToTokenDTO(resp), err
 }
 
-func (s *authService) RefreshToken(refreshToken string) (*structs.GoogleTokenRefreshResponse, error) {
-	resp, err := s.AuthRepository.RefreshToken(refreshToken)
-	return resp, err
+func (s AuthService) ValidateToken(token string) (*dtos.UserDto, error) {
+	resp, err := s.authRepository.ValidateToken(token)
+	if err != nil {
+		return nil, err
+	}
+	user, err := s.usersRepository.FindByEmail(*resp)
+	return dtos.ToUserDto(user), err
 }

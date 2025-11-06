@@ -1,44 +1,45 @@
 package middlewares
 
 import (
+	"api/internal/errors"
 	"api/internal/services"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-type AuthMiddleware struct {
-	authService services.AuthService
+type Middlewares struct {
+	authService  *services.AuthService
+	usersService *services.UsersService
 }
 
-func NewAuthMiddleware(authService services.AuthService) *AuthMiddleware {
-	return &AuthMiddleware{
-		authService: authService,
+func New(authService *services.AuthService, usersService *services.UsersService) *Middlewares {
+	return &Middlewares{
+		authService:  authService,
+		usersService: usersService,
 	}
 }
 
-func (m *AuthMiddleware) RequireAuth(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-
-	if authHeader == "" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+func (m *Middlewares) IsAuthenticated(context *gin.Context) {
+	token := context.GetHeader("Authorization")
+	if token == "" {
+		context.AbortWithStatusJSON(errors.NewResponseError(errors.Unauthorized))
 		return
 	}
 
-	token := strings.Split(authHeader, "Bearer ")[1]
-	if len(token) <= 1 {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
+	token = strings.TrimPrefix(token, "Bearer ")
+	if len(token) == 0 {
+		context.AbortWithStatusJSON(errors.NewResponseError(errors.Unauthorized))
 		return
 	}
 
-	userData, err := m.authService.ValidateToken(token)
+	user, err := m.authService.ValidateToken(token)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		context.AbortWithStatusJSON(errors.NewResponseError(errors.Unauthorized))
+		context.Abort()
 		return
 	}
 
-	c.Set("user", userData)
-
-	c.Next()
+	context.Set("user", user)
+	context.Next()
 }
