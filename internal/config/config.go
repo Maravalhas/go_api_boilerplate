@@ -2,19 +2,36 @@ package config
 
 import (
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
+type Environment string
+
 const (
-	DatabaseDsn   = "DATABASE_DSN"
-	OauthTokenUrl = "OAUTH_TOKEN_URL"
-	OauthIdUrl    = "OAUTH_ID_URL"
-	ClientId      = "CLIENT_ID"
-	ClientSecret  = "CLIENT_SECRET"
-	RedirectUri   = "REDIRECT_URI"
-	Origin        = "ORIGIN"
-	Port          = "PORT"
+	Development Environment = "development"
+	Debug       Environment = "debug"
+	Test        Environment = "test"
+	Production  Environment = "production"
+)
+
+type Configvar string
+
+const (
+	DatabaseDsn     Configvar = "DATABASE_DSN"
+	OauthTokenUrl   Configvar = "OAUTH_TOKEN_URL"
+	OauthJWKSUrl    Configvar = "OAUTH_JWKS_URL"
+	OauthIssuers    Configvar = "OAUTH_ISSUERS"
+	ClientId        Configvar = "CLIENT_ID"
+	ClientSecret    Configvar = "CLIENT_SECRET"
+	RedirectUri     Configvar = "REDIRECT_URI"
+	Origin          Configvar = "ORIGIN"
+	Port            Configvar = "PORT"
+	Env             Configvar = "ENV"
+	IdTokenTTL      Configvar = "ID_TOKEN_TTL"
+	RefreshTokenTTL Configvar = "REFRESH_TOKEN_TTL"
 )
 
 type Config struct {
@@ -22,47 +39,88 @@ type Config struct {
 	DatabaseDsn string
 
 	// OAUTH
-	OauthTokenUrl string
-	OauthIdUrl    string
-	ClientId      string
-	ClientSecret  string
-	RedirectUri   string
+	OauthTokenUrl   string
+	OauthJWKSUrl    string
+	OauthIssuers    []string
+	ClientId        string
+	ClientSecret    string
+	RedirectUri     string
+	IdTokenTTL      int
+	RefreshTokenTTL int
 
 	// APP
 	Origin string
 	Port   string
+
+	Env Environment
 }
 
-func LoadConfig() *Config {
-	err := godotenv.Load()
+func IsProduction() bool {
+	return Current.Env == Production
+}
+
+func IsDebug() bool {
+	return Current.Env == Debug || Current.Env == Test
+}
+
+func IsDevelopment() bool {
+	return Current.Env == Development
+}
+
+func IsTest() bool {
+	return Current.Env == Test
+}
+
+var Current *Config
+
+func LoadConfig() {
+	if os.Getenv("ENV") != string(Production) {
+		if err := godotenv.Load(); err != nil {
+			panic("Error loading .env file")
+		}
+	}
+
+	id_token_ttl, err := strconv.Atoi(getEnvOrDefault(IdTokenTTL, "3600"))
 	if err != nil {
-		panic("Error loading .env file")
+		panic("Invalid value for ID_TOKEN_TTL")
 	}
 
-	return &Config{
-		DatabaseDsn:   getEnvOrPanic(DatabaseDsn),
-		OauthTokenUrl: getEnvOrPanic(OauthTokenUrl),
-		OauthIdUrl:    getEnvOrPanic(OauthIdUrl),
-		ClientId:      getEnvOrPanic(ClientId),
-		ClientSecret:  getEnvOrPanic(ClientSecret),
-		RedirectUri:   getEnvOrPanic(RedirectUri),
-		Origin:        getEnvOrPanic(Origin),
-		Port:          getEnvOrDefault(Port, "8080"),
+	refresh_token_ttl, err := strconv.Atoi(getEnvOrDefault(RefreshTokenTTL, "86400"))
+	if err != nil {
+		panic("Invalid value for REFRESH_TOKEN_TTL")
+	}
+
+	Current = &Config{
+		DatabaseDsn: getEnvOrPanic(DatabaseDsn),
+
+		OauthTokenUrl:   getEnvOrPanic(OauthTokenUrl),
+		OauthJWKSUrl:    getEnvOrPanic(OauthJWKSUrl),
+		OauthIssuers:    strings.Split(getEnvOrPanic(OauthIssuers), ","),
+		ClientId:        getEnvOrPanic(ClientId),
+		ClientSecret:    getEnvOrPanic(ClientSecret),
+		RedirectUri:     getEnvOrPanic(RedirectUri),
+		IdTokenTTL:      id_token_ttl,
+		RefreshTokenTTL: refresh_token_ttl,
+
+		Origin: getEnvOrPanic(Origin),
+		Port:   getEnvOrDefault(Port, "8080"),
+
+		Env: Environment(getEnvOrDefault(Env, string(Development))),
 	}
 }
 
-func getEnvOrDefault(key string, defaultValue string) string {
-	value, exists := os.LookupEnv(key)
+func getEnvOrDefault(key Configvar, defaultValue string) string {
+	value, exists := os.LookupEnv(string(key))
 	if !exists {
 		return defaultValue
 	}
 	return value
 }
 
-func getEnvOrPanic(key string) string {
-	value, exists := os.LookupEnv(key)
+func getEnvOrPanic(key Configvar) string {
+	value, exists := os.LookupEnv(string(key))
 	if !exists {
-		panic("Environment variable " + key + " is required.")
+		panic("Environment variable " + string(key) + " is required.")
 	}
 	return value
 }

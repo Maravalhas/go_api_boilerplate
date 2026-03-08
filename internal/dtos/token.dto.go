@@ -14,6 +14,7 @@ type TokenDTO struct {
 func ToTokenDTO(token *models.Token) *TokenDTO {
 	return &TokenDTO{
 		AccessToken:  token.AccessToken,
+		IDToken:      token.IDToken,
 		RefreshToken: token.RefreshToken,
 		ExpiresIn:    token.ExpiresIn,
 	}

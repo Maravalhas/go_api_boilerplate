@@ -2,6 +2,7 @@ package models
 
 type Token struct {
 	AccessToken  string `json:"access_token"`
+	IDToken      string `json:"id_token"`
 	ExpiresIn    int    `json:"expires_in"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	TokenType    string `json:"token_type"`

@@ -1,71 +1,32 @@
 package errors
 
 import (
-	systemError "errors"
 	"fmt"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
-type ResponseError struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
+type AppError struct {
+	StatusCode int
+	Message    string
 }
 
-type Error uint8
+func (e *AppError) Error() string {
+	return e.Message
+}
 
-const (
-	BadRequest Error = iota
-	Unauthorized
-	Forbidden
-	NotFound
-	Duplicated
-	InternalError
+func New(statusCode int, message string) *AppError {
+	return &AppError{StatusCode: statusCode, Message: message}
+}
+
+func Newf(statusCode int, format string, args ...any) *AppError {
+	return &AppError{StatusCode: statusCode, Message: fmt.Sprintf(format, args...)}
+}
+
+var (
+	ErrBadRequest      = New(http.StatusBadRequest, "Bad Request")
+	ErrUnauthorized    = New(http.StatusUnauthorized, "Unauthorized")
+	ErrForbidden       = New(http.StatusForbidden, "Forbidden")
+	ErrNotFound        = New(http.StatusNotFound, "Entity Not Found")
+	ErrDuplicated      = New(http.StatusConflict, "Entity Already Exists")
+	ErrInvalidFileType = New(http.StatusUnsupportedMediaType, "Invalid file type")
 )
-
-var errors = map[Error]ResponseError{
-	BadRequest: {
-		StatusCode: http.StatusBadRequest,
-		Message:    "Bad Request",
-	},
-	Unauthorized: {
-		StatusCode: http.StatusUnauthorized,
-		Message:    "Unauthorized",
-	},
-	Forbidden: {
-		StatusCode: http.StatusForbidden,
-		Message:    "Forbidden",
-	},
-	NotFound: {
-		StatusCode: http.StatusNotFound,
-		Message:    "Entity Not Found",
-	},
-	Duplicated: {
-		StatusCode: http.StatusConflict,
-		Message:    "Entity Already Exists",
-	},
-	InternalError: {
-		StatusCode: http.StatusInternalServerError,
-		Message:    "Internal Server Error",
-	},
-}
-
-func New(error Error) error {
-	return systemError.New(errors[error].Message)
-}
-
-func Equal(err error, err2 Error) bool {
-	return err.Error() == errors[err2].Message
-}
-
-func NewResponseError(error Error) (int, map[string]any) {
-	err := errors[error]
-	return err.StatusCode, gin.H{"status": err.StatusCode, "message": err.Message}
-}
-
-func NewResponseErrorWithMessage(error Error, message string) (int, map[string]any) {
-	err := errors[error]
-	err.Message = fmt.Sprintf("%s: %s", err.Message, message)
-	return err.StatusCode, gin.H{"status": err.StatusCode, "message": err.Message}
-}

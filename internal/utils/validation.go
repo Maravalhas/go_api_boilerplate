@@ -1,30 +1,28 @@
 package utils
 
 import (
-	"errors"
+	"api/internal/errors"
+	"api/internal/logger"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 )
 
-var validate = validator.New()
+var log = logger.New("Validations")
 
-func BindAndValidateQuery[T any](context *gin.Context, obj *T) error {
+func BindAndValidateQuery[T any](context *gin.Context, obj *T) bool {
 	if err := context.ShouldBindQuery(obj); err != nil {
-		return errors.New("invalid query parameters")
+		log.Debugf("Query validation error: %v", err)
+		context.AbortWithStatusJSON(errors.ErrBadRequest.StatusCode, gin.H{"message": errors.ErrBadRequest.Message})
+		return false
 	}
-	if err := validate.Struct(obj); err != nil {
-		return errors.New(err.Error())
-	}
-	return nil
+	return true
 }
 
-func BindAndValidateBody[T any](context *gin.Context, obj *T) error {
-	if err := context.ShouldBind(obj); err != nil {
-		return errors.New("invalid body parameters")
+func BindAndValidateBody[T any](context *gin.Context, obj *T) bool {
+	if err := context.ShouldBindJSON(obj); err != nil {
+		log.Debugf("Body validation error: %v", err)
+		context.AbortWithStatusJSON(errors.ErrBadRequest.StatusCode, gin.H{"message": errors.ErrBadRequest.Message})
+		return false
 	}
-	if err := validate.Struct(obj); err != nil {
-		return errors.New(err.Error())
-	}
-	return nil
+	return true
 }

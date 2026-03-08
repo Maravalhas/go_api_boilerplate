@@ -2,6 +2,7 @@ package services
 
 import (
 	"api/internal/dtos"
+	"api/internal/errors"
 	"api/internal/repositories"
 )
 
@@ -19,19 +20,28 @@ func NewAuthService(authRepository repositories.AuthRepository, usersRepository 
 
 func (s AuthService) GenerateToken(code string, challenge string) (*dtos.TokenDTO, error) {
 	resp, err := s.authRepository.GenerateToken(code, challenge)
-	return dtos.ToTokenDTO(resp), err
+	if err != nil {
+		return nil, errors.ErrUnauthorized
+	}
+	return dtos.ToTokenDTO(resp), nil
 }
 
 func (s AuthService) RefreshToken(refreshToken string) (*dtos.TokenDTO, error) {
 	resp, err := s.authRepository.RefreshToken(refreshToken)
-	return dtos.ToTokenDTO(resp), err
+	if err != nil {
+		return nil, errors.ErrUnauthorized
+	}
+	return dtos.ToTokenDTO(resp), nil
 }
 
 func (s AuthService) ValidateToken(token string) (*dtos.UserDto, error) {
 	resp, err := s.authRepository.ValidateToken(token)
 	if err != nil {
-		return nil, err
+		return nil, errors.ErrUnauthorized
 	}
 	user, err := s.usersRepository.FindByEmail(*resp)
-	return dtos.ToUserDto(user), err
+	if err != nil {
+		return nil, errors.ErrNotFound
+	}
+	return dtos.ToUserDto(user), nil
 }

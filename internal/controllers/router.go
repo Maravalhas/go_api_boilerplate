@@ -7,7 +7,7 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, container *container.Container) {
-	router := r.Group("/api")
+	apiGroup := r.Group("/api")
 
-	RegisterAuthRoutes(router.Group("/auth"), container)
+	RegisterAuthRoutes(apiGroup.Group("/auth"), container)
 }

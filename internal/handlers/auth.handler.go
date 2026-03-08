@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"api/internal/errors"
+	"api/internal/config"
 	"api/internal/services"
 	"api/internal/utils"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,52 +25,56 @@ func (h *AuthHandler) PostToken(context *gin.Context) {
 		Challenge string `form:"challenge"`
 	}
 
-	if err := utils.BindAndValidateQuery(context, &query); err != nil {
-		context.AbortWithStatusJSON(errors.NewResponseError(errors.BadRequest))
+	if valid := utils.BindAndValidateQuery(context, &query); !valid {
 		return
 	}
 
 	response, err := h.authService.GenerateToken(query.Code, query.Challenge)
 
 	if err != nil {
-		context.AbortWithStatusJSON(errors.NewResponseError(errors.BadRequest))
+		HandleError(context, err)
 		return
 	}
-	context.SetCookie("refresh_token", response.RefreshToken, 86400, "/", "", false, true)
-	context.JSON(http.StatusOK, gin.H{"data": *response})
+	context.SetCookie("refresh_token", response.RefreshToken, config.Current.RefreshTokenTTL, "/", "", false, true)
+	context.SetCookie("id_token", response.IDToken, config.Current.IdTokenTTL, "/", "", false, true)
+	context.JSON(http.StatusOK, gin.H{"data": map[string]interface{}{
+		"id_token":   response.IDToken,
+		"expires_in": config.Current.IdTokenTTL,
+	}})
 }
 
 func (h *AuthHandler) PostRefreshToken(context *gin.Context) {
 	refreshToken, err := context.Cookie("refresh_token")
 
 	if err != nil || refreshToken == "" {
-		context.AbortWithStatusJSON(errors.NewResponseError(errors.Unauthorized))
+		context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 		return
 	}
 
 	response, err := h.authService.RefreshToken(refreshToken)
 
 	if err != nil {
-		context.AbortWithStatusJSON(errors.NewResponseError(errors.InternalError))
+		HandleError(context, err)
 		return
 	}
-	context.JSON(http.StatusOK, gin.H{"data": *response})
+	context.SetCookie("id_token", response.IDToken, config.Current.IdTokenTTL, "/", "", false, true)
+	context.JSON(http.StatusOK, gin.H{"data": map[string]interface{}{
+		"id_token":   response.IDToken,
+		"expires_in": config.Current.IdTokenTTL,
+	}})
 }
 
 func (h *AuthHandler) GetTokenData(context *gin.Context) {
-	token := context.GetHeader("Authorization")
-
-	token = strings.TrimPrefix(token, "Bearer ")
-
-	if len(token) <= 0 {
-		context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	token, err := context.Cookie("id_token")
+	if err != nil {
+		context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 		return
 	}
 
 	response, err := h.authService.ValidateToken(token)
 
 	if err != nil {
-		context.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		HandleError(context, err)
 		return
 	}
 

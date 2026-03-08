@@ -5,21 +5,23 @@ import (
 	"api/internal/config"
 	"api/internal/container"
 	"api/internal/controllers"
+	"api/internal/logger"
 	"api/internal/utils"
-	"log"
 
 	"github.com/gin-gonic/gin"
 )
 
-func main() {
-	cfg := config.LoadConfig()
+var log = logger.New("main")
 
-	gormDb, err := db.InitializeDB(cfg)
+func main() {
+	config.LoadConfig()
+
+	gormDb, err := db.InitializeDB()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	appContainer := container.NewContainer(gormDb, cfg)
+	appContainer := container.NewContainer(gormDb)
 
 	router := gin.Default()
 
@@ -27,7 +29,7 @@ func main() {
 
 	controllers.RegisterRoutes(router, appContainer)
 
-	err = router.Run(":" + cfg.Port)
+	err = router.Run(":" + config.Current.Port)
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

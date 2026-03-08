@@ -2,7 +2,6 @@ package container
 
 import (
 	"api/internal/clients"
-	"api/internal/config"
 	"api/internal/handlers"
 	"api/internal/middlewares"
 	"api/internal/repositories"
@@ -30,9 +29,9 @@ type Container struct {
 	OAuthClient clients.OAuthClient
 }
 
-func NewContainer(db *gorm.DB, config *config.Config) *Container {
+func NewContainer(db *gorm.DB) *Container {
 	// Initialize clients
-	oauthClient := clients.NewOAuthClient(config)
+	oauthClient := clients.NewOAuthClient()
 
 	// Initialize repositories
 	authRepo := repositories.NewAuthRepository(db, oauthClient)
